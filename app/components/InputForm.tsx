@@ -28,7 +28,7 @@ const DEFAULTS: FormValues = {
   fixed_capacity: null,
   install_type: "roof",
   grid_price: 0.9,
-  initial_pv_capacity: 1000,
+  initial_pv_capacity: null,
   autonomy_days: 1,
   diesel_liters_per_day: null,
   diesel_price_per_liter: 1.2,
@@ -77,7 +77,8 @@ export default function InputForm({
     if (values.project_address.trim().length < 3) return "Project address must be at least 3 characters.";
     if (values.load_information.trim().length < 5) return "Load description must be at least 5 characters.";
     if (values.grid_price <= 0) return "Grid price must be greater than 0.";
-    if (values.initial_pv_capacity <= 0) return "Initial PV capacity must be greater than 0.";
+    if (values.initial_pv_capacity != null && values.initial_pv_capacity <= 0)
+      return "Initial PV capacity baseline must be greater than 0 (or left blank).";
     if (values.autonomy_days < 0.5 || values.autonomy_days > 7) return "Autonomy days must be between 0.5 and 7.";
     if (requiresPassword && !values.password) return "Password is required.";
     return null;
@@ -105,7 +106,10 @@ export default function InputForm({
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Project address">
+        <Field
+          label="Project address"
+          hint="Any geocodable place name or address — used to look up solar irradiance, optimal panel tilt/azimuth, and country for the site. e.g. &quot;Nairobi, Kenya&quot; or &quot;123 Main St, Austin, TX&quot;"
+        >
           <input
             className={inputClass}
             placeholder="e.g. Nairobi, Kenya"
@@ -114,7 +118,10 @@ export default function InputForm({
           />
         </Field>
 
-        <Field label="ESS mode">
+        <Field
+          label="ESS mode"
+          hint="How the site should use its battery: Off-grid sensitive = full backup, no load ever drops; Off-grid non-sensitive = some load shedding tolerated; Grid-tie = offset grid usage while still connected; Peak-shaving = only trim demand-charge peaks."
+        >
           <select
             className={inputClass}
             value={values.ess_mode}
@@ -130,7 +137,7 @@ export default function InputForm({
 
         <Field
           label="Load description"
-          hint="Free text, e.g. &quot;5 AM to 7 AM 1200kW, noon 1000kW, 3-6 PM 900kW&quot;"
+          hint="Free text describing the 24-hour load profile — list the rough time windows and power draw in kW. e.g. &quot;5 AM to 7 AM 1200kW, noon 1000kW, 3-6 PM 900kW, otherwise near zero&quot;"
         >
           <textarea
             className={`${inputClass} min-h-24 resize-y sm:col-span-2`}
@@ -140,7 +147,10 @@ export default function InputForm({
           />
         </Field>
 
-        <Field label="Install type">
+        <Field
+          label="Install type"
+          hint="Where the PV array will be mounted — affects installation cost assumptions in the financial model. e.g. rooftop for a small commercial site, ground-mounted for open land."
+        >
           <select
             className={inputClass}
             value={values.install_type}
@@ -154,44 +164,62 @@ export default function InputForm({
           </select>
         </Field>
 
-        <Field label="Fixed PV capacity (kWp)" hint="Leave blank to let the system propose a capacity">
+        <Field
+          label="Fixed PV capacity (kWp)"
+          hint="Only set this if the PV size is already decided (e.g. a fixed 500 kWp array on an existing roof). Leave blank to let the system propose an optimal capacity instead."
+        >
           <input
             type="number"
             min={0}
+            placeholder="e.g. 500 (optional)"
             className={inputClass}
             value={values.fixed_capacity ?? ""}
             onChange={(e) => update("fixed_capacity", e.target.value === "" ? null : Number(e.target.value))}
           />
         </Field>
 
-        <Field label="Initial PV capacity baseline (kWp)">
+        <Field
+          label="Initial PV capacity baseline (kWp)"
+          hint="A starting reference size used to pull solar-resource data and seed proposed-capacity sizing. Leave blank to use the system default (1000 kWp) — most users can leave this blank."
+        >
           <input
             type="number"
             min={0.01}
             step="1"
+            placeholder="e.g. 1000 (optional, defaults to 1000)"
             className={inputClass}
-            value={values.initial_pv_capacity}
-            onChange={(e) => update("initial_pv_capacity", Number(e.target.value))}
+            value={values.initial_pv_capacity ?? ""}
+            onChange={(e) =>
+              update("initial_pv_capacity", e.target.value === "" ? null : Number(e.target.value))
+            }
           />
         </Field>
 
-        <Field label="Grid electricity price (¥/kWh)">
+        <Field
+          label="Grid electricity price (¥/kWh)"
+          hint="Local retail electricity price, used to value the load served by self-generation. e.g. 0.9 for ¥0.9/kWh."
+        >
           <input
             type="number"
             min={0.01}
             step="0.01"
+            placeholder="e.g. 0.9"
             className={inputClass}
             value={values.grid_price}
             onChange={(e) => update("grid_price", Number(e.target.value))}
           />
         </Field>
 
-        <Field label="Battery autonomy (days)" hint="0.5 – 7 days of cloudy-weather backup">
+        <Field
+          label="Battery autonomy (days)"
+          hint="How many days of cloudy-weather backup the battery should provide, between 0.5 and 7. e.g. 1 for a typical 1-day reserve."
+        >
           <input
             type="number"
             min={0.5}
             max={7}
             step="0.5"
+            placeholder="e.g. 1"
             className={inputClass}
             value={values.autonomy_days}
             onChange={(e) => update("autonomy_days", Number(e.target.value))}
@@ -209,10 +237,14 @@ export default function InputForm({
 
       {showAdvanced && (
         <div className="grid gap-5 sm:grid-cols-2 border-t border-[var(--color-border)] pt-5">
-          <Field label="Current diesel consumption (L/day)" hint="Optional — enables diesel-savings comparison">
+          <Field
+            label="Current diesel consumption (L/day)"
+            hint="Optional — if this site currently runs on a diesel generator, enter its daily fuel use to get a diesel-savings comparison. e.g. 50 (optional, leave blank if not applicable)."
+          >
             <input
               type="number"
               min={0}
+              placeholder="e.g. 50 (optional)"
               className={inputClass}
               value={values.diesel_liters_per_day ?? ""}
               onChange={(e) =>
@@ -220,21 +252,29 @@ export default function InputForm({
               }
             />
           </Field>
-          <Field label="Diesel price (USD/L)">
+          <Field
+            label="Diesel price (USD/L)"
+            hint="Local diesel fuel price, used together with consumption above to estimate savings from displaced generator use. e.g. 1.2."
+          >
             <input
               type="number"
               min={0.01}
               step="0.01"
+              placeholder="e.g. 1.2"
               className={inputClass}
               value={values.diesel_price_per_liter}
               onChange={(e) => update("diesel_price_per_liter", Number(e.target.value))}
             />
           </Field>
-          <Field label="Grid emission factor (kg CO2/kWh)">
+          <Field
+            label="Grid emission factor (kg CO2/kWh)"
+            hint="How much CO2 the local grid emits per kWh, used to estimate emissions avoided by self-generation. Typical range 0.4–0.9. e.g. 0.5."
+          >
             <input
               type="number"
               min={0}
               step="0.01"
+              placeholder="e.g. 0.5"
               className={inputClass}
               value={values.co2_grid_factor}
               onChange={(e) => update("co2_grid_factor", Number(e.target.value))}
@@ -244,7 +284,7 @@ export default function InputForm({
       )}
 
       {requiresPassword && (
-        <Field label="Access password">
+        <Field label="Access password" hint="The shared password provided to you for accessing this tool.">
           <input
             type="password"
             className={inputClass}

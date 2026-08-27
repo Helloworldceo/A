@@ -15,7 +15,7 @@ export interface UserInputs {
   fixed_capacity?: number | null;
   install_type: InstallType;
   grid_price: number;
-  initial_pv_capacity: number;
+  initial_pv_capacity?: number | null;
   autonomy_days: number;
   diesel_liters_per_day?: number | null;
   diesel_price_per_liter: number;

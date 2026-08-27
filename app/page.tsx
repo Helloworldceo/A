@@ -28,10 +28,17 @@ export default function Home() {
     setErrorMessage(null);
 
     try {
+      // initial_pv_capacity has a non-optional backend schema (defaults to
+      // 1000 when the key is absent) -- omit it entirely rather than send
+      // an explicit null, which would fail validation.
+      const { initial_pv_capacity, ...rest } = values;
+      const payload =
+        initial_pv_capacity == null ? rest : { ...rest, initial_pv_capacity };
+
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify(payload),
       });
 
       if (res.status === 401) {
